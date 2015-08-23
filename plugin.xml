@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+
+   <extension
+         point="org.eclipse.jdt.ui.quickAssistProcessors">
+      <quickAssistProcessor
+            class="com.github.kimmokarlsson.eclipse.buildercreator.BuilderFieldQuickAssistHandler"
+            id="com.github.kimmokarlsson.eclipse.buildercreator.quickAssistProcessor">
+      </quickAssistProcessor>
+   </extension>
+   <extension
+         point="org.eclipse.ui.commands">
+      <command
+            categoryId="org.eclipse.jdt.ui.category.refactoring"
+            defaultHandler="com.github.kimmokarlsson.eclipse.buildercreator.BuilderCreatorCommandHandler"
+            id="com.github.kimmokarlsson.eclipse.buildercreator.createBuilderCommand"
+            name="Create Builder using fields">
+      </command>
+   </extension>
+   <extension
+         point="org.eclipse.ui.menus">
+      <menuContribution
+            allPopups="false"
+            locationURI="popup:org.eclipse.jdt.ui.source.menu?after=codeGroup">
+         <command
+               commandId="com.github.kimmokarlsson.eclipse.buildercreator.createBuilderCommand"
+               label="Create Builder using fields"
+               style="push">
+            <visibleWhen
+                  checkEnabled="true">
+            </visibleWhen>
+         </command>
+      </menuContribution>
+   </extension>
+
+</plugin>
