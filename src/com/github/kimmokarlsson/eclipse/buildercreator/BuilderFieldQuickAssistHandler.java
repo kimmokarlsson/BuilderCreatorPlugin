@@ -16,18 +16,31 @@ public class BuilderFieldQuickAssistHandler implements IQuickAssistProcessor {
 	
 	@Override
 	public boolean hasAssists(IInvocationContext context) throws CoreException {
-		return context != null && isClassField(context.getCoveredNode());
+		return context != null && isClassFieldWithBuilder(context.getCoveringNode());
 	}
 
-	private boolean isClassField(ASTNode node) {
-		return node instanceof FieldDeclaration && node.getParent() instanceof TypeDeclaration;
+	private boolean isClassFieldWithBuilder(ASTNode node) {
+		return node instanceof FieldDeclaration && node.getParent() instanceof TypeDeclaration
+				&& isBuilderSubClass((TypeDeclaration)node.getParent());
+	}
+
+	private boolean isBuilderSubClass(TypeDeclaration parent) {
+		if (parent.getTypes() == null) {
+			return false;
+		}
+		for (TypeDeclaration decl : parent.getTypes()) {
+			if (!decl.isInterface() && decl.getName().getIdentifier().equals("Builder")) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@Override
 	public IJavaCompletionProposal[] getAssists(IInvocationContext context, IProblemLocation[] locations)
 			throws CoreException {
-		ASTNode fieldNode = context.getCoveredNode();
-		if (!isClassField(fieldNode)) {
+		ASTNode fieldNode = context.getCoveringNode();
+		if (!isClassFieldWithBuilder(fieldNode)) {
 			return new IJavaCompletionProposal[] { };
 		}
 		IJavaCompletionProposal prop = new BuilderFieldCompletionProposal(context.getCompilationUnit(), (FieldDeclaration)fieldNode);

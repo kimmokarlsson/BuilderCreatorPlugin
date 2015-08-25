@@ -17,12 +17,14 @@ public class BuilderCodeGenerator {
 	public static class Settings {
 		private final boolean convertFieldsFinal;
 		private final boolean builderFromMethod;
+		private final boolean jacksonAnnotations;
 		private final String buildMethodName;
 		private final String methodPrefix;
 		
 		Settings(Builder b) {
 			this.convertFieldsFinal = b.convertFieldsFinal;
 			this.builderFromMethod = b.builderFromMethod;
+			this.jacksonAnnotations = b.jacksonAnnotations;
 			this.buildMethodName = checkString(b.buildMethodName, "build");
 			this.methodPrefix = checkString(b.methodPrefix, "");
 		}
@@ -44,6 +46,9 @@ public class BuilderCodeGenerator {
 		public boolean isBuilderFromMethod() {
 			return builderFromMethod;
 		}
+		public boolean isJacksonAnnotations() {
+			return jacksonAnnotations;
+		}
 		public String getBuildMethodName() {
 			return buildMethodName;
 		}
@@ -54,6 +59,7 @@ public class BuilderCodeGenerator {
 		public static class Builder {
 			private boolean convertFieldsFinal;
 			private boolean builderFromMethod;
+			private boolean jacksonAnnotations;
 			private String buildMethodName;
 			private String methodPrefix;
 			private Builder() {}
@@ -63,6 +69,10 @@ public class BuilderCodeGenerator {
 			}
 			public Builder builderFromMethod(boolean s) {
 				this.builderFromMethod = s;
+				return this;
+			}
+			public Builder jacksonAnnotations(boolean s) {
+				this.jacksonAnnotations = s;
 				return this;
 			}
 			public Builder buildMethodName(String s) {
@@ -120,8 +130,19 @@ public class BuilderCodeGenerator {
 			sb.append("    }\n");
 		}
 		
+		sb.append("\n\n");
+
+		// jackson annotations
+		if (settings.isJacksonAnnotations()) {
+			sb.append("    @JsonPOJOBuilder(withPrefix=\"");
+			sb.append(settings.getMethodPrefix());
+			sb.append("\", buildMethodName=\"");
+			sb.append(settings.getBuildMethodName());
+			sb.append("\")\n");
+		}
+		
 		// builder class
-		sb.append("\n\n    public static class Builder {\n");
+		sb.append("    public static class Builder {\n");
 		for (IField f : fields) {
 			sb.append("        private ");
 			sb.append(getFieldType(f));

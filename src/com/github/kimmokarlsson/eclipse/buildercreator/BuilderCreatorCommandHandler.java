@@ -15,6 +15,7 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.ToolFactory;
 import org.eclipse.jdt.core.formatter.CodeFormatter;
+import org.eclipse.jdt.core.formatter.DefaultCodeFormatterConstants;
 import org.eclipse.jdt.ui.IWorkingCopyManager;
 import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.jface.dialogs.Dialog;
@@ -47,7 +48,7 @@ public class BuilderCreatorCommandHandler extends AbstractHandler {
 
 	private void modify(ICompilationUnit cu) throws JavaModelException {
 
-		CreateBuilderDialog dialog = new CreateBuilderDialog();
+		BuilderCreatorDialog dialog = new BuilderCreatorDialog();
 		if (dialog.show(cu) == Dialog.OK) {
 			
 			List<IField> fields = dialog.getFields();
@@ -77,10 +78,12 @@ public class BuilderCreatorCommandHandler extends AbstractHandler {
 			}
 
 			String sourceCode = buffer.getContents();
-			Map<String,String> options = new HashMap<>();
-			options.put(JavaCore.COMPILER_SOURCE, "1.8");
-			options.put(JavaCore.COMPILER_COMPLIANCE, "1.8");
-			options.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, "1.8");
+			// take default Eclipse formatting options
+			Map options = DefaultCodeFormatterConstants.getEclipseDefaultSettings();
+			// make sure Java8 is supported
+			options.put(JavaCore.COMPILER_SOURCE, JavaCore.VERSION_1_8);
+			options.put(JavaCore.COMPILER_COMPLIANCE, JavaCore.VERSION_1_8);
+			options.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, JavaCore.VERSION_1_8);
 			TextEdit text = ToolFactory.createCodeFormatter(options).format(CodeFormatter.K_COMPILATION_UNIT, sourceCode, 0, sourceCode.length(), 0, null);
 			try {
 				cu.applyTextEdit(text, null);

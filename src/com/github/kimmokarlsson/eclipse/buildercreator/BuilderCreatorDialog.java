@@ -23,14 +23,14 @@ import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.swt.widgets.Text;
 
-public class CreateBuilderDialog extends AbstractModalDialog {
+public class BuilderCreatorDialog extends AbstractModalDialog {
 
 	private int status = -1;
 	private List<IField> selectedFields;
 	private IField lastField;
 	private BuilderCodeGenerator.Settings settings;
     
-	public CreateBuilderDialog() {
+	public BuilderCreatorDialog() {
 		super(BuilderCreatorPlugin.getDefault().getWorkbench().getModalDialogShellProvider().getShell(), SWT.RESIZE);
 		selectedFields = new ArrayList<>();
 	}
@@ -117,6 +117,10 @@ public class CreateBuilderDialog extends AbstractModalDialog {
         createBuilderFromMethod.setSelection(true);
         createBuilderFromMethod.setText("Create builderFrom method");
 
+        final Button createJacksonAnnotations = new Button(optionGroup, SWT.CHECK);
+        createJacksonAnnotations.setSelection(true);
+        createJacksonAnnotations.setText("Create Jackson annotations");
+
         final Label builderLabel = new Label(optionGroup, SWT.NONE);
         builderLabel.setText("Builder method prefix:");
         final Text builderMethodPrefix = new Text(optionGroup, SWT.BORDER);
@@ -168,6 +172,7 @@ public class CreateBuilderDialog extends AbstractModalDialog {
 				settings = BuilderCodeGenerator.Settings.builder()
 						.builderFromMethod(createBuilderFromMethod.getSelection())
 						.convertFieldsFinal(convertFieldsToFinal.getSelection())
+						.jacksonAnnotations(createJacksonAnnotations.getSelection())
 						.buildMethodName(buildMethodName.getText())
 						.methodPrefix(builderMethodPrefix.getText())
 						.build();
