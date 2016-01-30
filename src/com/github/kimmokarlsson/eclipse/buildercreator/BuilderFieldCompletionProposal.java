@@ -1,7 +1,6 @@
 package com.github.kimmokarlsson.eclipse.buildercreator;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -27,7 +26,6 @@ import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
-import org.eclipse.jdt.core.dom.TypeLiteral;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.ui.text.java.correction.ASTRewriteCorrectionProposal;
@@ -43,33 +41,61 @@ public class BuilderFieldCompletionProposal extends ASTRewriteCorrectionProposal
 
 	private static ASTRewrite createRewrite(ICompilationUnit cu, FieldDeclaration fieldDefNode) {
 		TypeDeclaration parentClass = (TypeDeclaration) fieldDefNode.getParent();
-		TypeDeclaration builderClass = null; 
+		TypeDeclaration builderClass = null;
 		for (TypeDeclaration decl : parentClass.getTypes()) {
 			if (!decl.isInterface() && "Builder".equals(decl.getName().getIdentifier())) {
 				builderClass = decl;
 				break;
 			}
 		}
-		
+
 		if (builderClass == null) {
 			ErrorLog.warn("Builder sub-class not found", null);
 			return null;
 		}
-		
+
 		// create copy of compilation unit
 		ASTParser parser = ASTParser.newParser(AST.JLS8);
 		parser.setSource(cu);
 		CompilationUnit astRoot = (CompilationUnit) parser.createAST(null);
-		
+
 		List<String> path = findPath(builderClass);
 		TypeDeclaration modifiedBuilderClass = traversePath(astRoot, path);
 		if (modifiedBuilderClass == null) {
 			ErrorLog.warn("Builder sub-class not found in copy", null);
 			return null;
 		}
-		ASTRewrite rewrite = ASTRewrite.create(builderClass.getParent().getAST());
-		AST ast = modifiedBuilderClass.getParent().getAST();
-		
+		ASTRewrite rewrite = ASTRewrite.create(parentClass.getParent().getAST());
+		TypeDeclaration modifiedParentClass = (TypeDeclaration) modifiedBuilderClass.getParent();
+		AST ast = modifiedParentClass.getParent().getAST();
+
+		VariableDeclarationFragment frag = ast.newVariableDeclarationFragment();
+		String fieldName = ((VariableDeclarationFragment)fieldDefNode.fragments().get(0)).getName().getIdentifier();
+
+		// find parent constructor with Builder class as single parameter
+		MethodDeclaration pconstr = null;
+		for (MethodDeclaration m : modifiedParentClass.getMethods()) {
+			if (m.isConstructor() && m.parameters().size() == 1) {
+				pconstr = m;
+				break;
+			}
+		}
+
+		// add parent class constructor assignment
+		if (pconstr != null) {
+			Assignment ass = ast.newAssignment();
+			FieldAccess thisField = ast.newFieldAccess();
+			thisField.setExpression(ast.newThisExpression());
+			thisField.setName(ast.newSimpleName(fieldName));
+			ass.setLeftHandSide(thisField);
+			FieldAccess otherField = ast.newFieldAccess();
+			otherField.setExpression(ast.newSimpleName("b"));
+			otherField.setName(ast.newSimpleName(fieldName));
+			ass.setRightHandSide(otherField);
+			ExpressionStatement stmt = ast.newExpressionStatement(ass);
+			pconstr.getBody().statements().add(stmt);
+		}
+
 		// find origin field neighbor
 		int fieldIndex = 0;
 		for (FieldDeclaration f : parentClass.getFields()) {
@@ -86,28 +112,58 @@ public class BuilderFieldCompletionProposal extends ASTRewriteCorrectionProposal
 		else {
 			neighborField = parentClass.getFields()[fieldIndex+1];
 		}
-		
+		String neighborName = ((VariableDeclarationFragment)neighborField.fragments().get(0)).getName().getIdentifier();
+
+		// add parent class getter
+		{
+			MethodDeclaration getter = ast.newMethodDeclaration();
+			getter.setName(ast.newSimpleName(getGetterName(fieldName)));
+			getter.modifiers().add(ast.newModifier(ModifierKeyword.PUBLIC_KEYWORD));
+			getter.setReturnType2(createTypeCopy(fieldDefNode.getType(), ast));
+			Block body = ast.newBlock();
+			ReturnStatement ret = ast.newReturnStatement();
+			FieldAccess thisField = ast.newFieldAccess();
+			thisField.setName(ast.newSimpleName(fieldName));
+			thisField.setExpression(ast.newThisExpression());
+			ret.setExpression(thisField);
+			body.statements().add(ret);
+			getter.setBody(body);
+
+			// find neighbor field getter
+			MethodDeclaration neighborGetter = null;
+			for (MethodDeclaration m : modifiedParentClass.getMethods()) {
+				if (m.getName().getIdentifier().equals(getGetterName(neighborName))) {
+					neighborGetter = m;
+					break;
+				}
+			}
+
+			int index = modifiedParentClass.bodyDeclarations().indexOf(neighborGetter);
+			if (index <= 0) {
+				index = modifiedParentClass.bodyDeclarations().size()-1;
+			}
+			modifiedParentClass.bodyDeclarations().add(index+1, getter);
+		}
+
 		// find neighbor from builder
-		String oid = ((VariableDeclarationFragment)neighborField.fragments().get(0)).getName().getIdentifier();
 		int index = 0;
 		for (FieldDeclaration f : modifiedBuilderClass.getFields()) {
 			String bid = ((VariableDeclarationFragment)f.fragments().get(0)).getName().getIdentifier();
-			if (oid.equals(bid)) {
+			if (neighborName.equals(bid)) {
 				break;
 			}
 			index++;
 		}
-		
-		// add builder field
-		VariableDeclarationFragment frag = ast.newVariableDeclarationFragment();
-		String fieldName = ((VariableDeclarationFragment)fieldDefNode.fragments().get(0)).getName().getIdentifier();
-		frag.setName(ast.newSimpleName(fieldName));
-		FieldDeclaration builderField = ast.newFieldDeclaration(frag);
-		List modifiers = builderField.modifiers();
-		modifiers.add(ast.newModifier(ModifierKeyword.PRIVATE_KEYWORD));
-		builderField.setType(createTypeCopy(fieldDefNode.getType(), ast));
-		modifiedBuilderClass.bodyDeclarations().add(index+1, builderField);
 
+		// add builder field
+		{
+			frag.setName(ast.newSimpleName(fieldName));
+			FieldDeclaration builderField = ast.newFieldDeclaration(frag);
+			List modifiers = builderField.modifiers();
+			modifiers.add(ast.newModifier(ModifierKeyword.PRIVATE_KEYWORD));
+			builderField.setType(createTypeCopy(fieldDefNode.getType(), ast));
+			modifiedBuilderClass.bodyDeclarations().add(index+1, builderField);
+		}
 
 		// find builder constructor with parent class as single parameter
 		MethodDeclaration constr = null;
@@ -131,8 +187,8 @@ public class BuilderFieldCompletionProposal extends ASTRewriteCorrectionProposal
 			ExpressionStatement stmt = ast.newExpressionStatement(ass);
 			constr.getBody().statements().add(stmt);
 		}
-		
-		// add setter method
+
+		// add setter method to builder
 		MethodDeclaration setter = ast.newMethodDeclaration();
 		setter.setName(ast.newSimpleName(fieldName));
 		setter.modifiers().add(ast.newModifier(ModifierKeyword.PUBLIC_KEYWORD));
@@ -154,10 +210,28 @@ public class BuilderFieldCompletionProposal extends ASTRewriteCorrectionProposal
 		ret.setExpression(ast.newThisExpression());
 		body.statements().add(ret);
 		setter.setBody(body);
-		modifiedBuilderClass.bodyDeclarations().add(setter);
-		
-		rewrite.replace(builderClass, modifiedBuilderClass, null);
+
+
+		MethodDeclaration neighbor = null;
+		for (MethodDeclaration m : modifiedBuilderClass.getMethods()) {
+			if (m.getName().getIdentifier().equals(neighborName)) {
+				neighbor = m;
+				break;
+			}
+		}
+
+		int setterIndex = modifiedBuilderClass.bodyDeclarations().indexOf(neighbor);
+		if (setterIndex <= 0) {
+			setterIndex = modifiedBuilderClass.bodyDeclarations().size()-1;
+		}
+		modifiedBuilderClass.bodyDeclarations().add(setterIndex+1, setter);
+
+		rewrite.replace(parentClass, modifiedParentClass, null);
 		return rewrite;
+	}
+
+	private static String getGetterName(String fieldName) {
+		return "get"+Character.toUpperCase(fieldName.charAt(0))+fieldName.substring(1);
 	}
 
 	private static Type createTypeCopy(Type type, AST ast) {
@@ -204,6 +278,10 @@ public class BuilderFieldCompletionProposal extends ASTRewriteCorrectionProposal
 					break;
 				}
 			}
+		}
+		if (type == null) {
+			ErrorLog.error("Type declaration somehow not found again.", new NullPointerException());
+			return null;
 		}
 		while (iter.hasNext()) {
 			name = iter.next();

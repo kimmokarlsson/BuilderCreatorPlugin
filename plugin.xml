@@ -33,5 +33,30 @@
          </command>
       </menuContribution>
    </extension>
+   <extension
+         point="org.eclipse.ui.preferencePages">
+      <page
+            category="org.eclipse.jdt.ui.preferences.JavaEditorPreferencePage"
+            class="com.github.kimmokarlsson.eclipse.buildercreator.BuilderCreatorPreferencePage"
+            id="com.github.kimmokarlsson.eclipse.buildercreator.prefs.page1"
+            name="BuilderCreator">
+      </page>
+   </extension>
+   <extension
+         point="org.eclipse.ui.propertyPages">
+      <page
+            category="org.eclipse.jdt.ui.propertyPages.JavaEditorPropertyPage"
+            class="com.github.kimmokarlsson.eclipse.buildercreator.BuilderCreatorPropertyPage"
+            id="com.github.kimmokarlsson.eclipse.buildercreator.props.page1"
+            name="Builder Creator"
+            objectClass="org.eclipse.core.resources.IProject">
+         <enabledWhen>
+            <adapt type="org.eclipse.core.resources.IProject">
+		          <test property="org.eclipse.core.resources.projectNature"
+		              value="org.eclipse.jdt.core.javanature"/>
+            </adapt>
+         </enabledWhen>
+      </page>
+   </extension>
 
 </plugin>
