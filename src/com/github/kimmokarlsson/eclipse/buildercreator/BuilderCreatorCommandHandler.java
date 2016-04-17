@@ -1,6 +1,5 @@
 package com.github.kimmokarlsson.eclipse.buildercreator;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -11,6 +10,7 @@ import org.eclipse.jdt.core.Flags;
 import org.eclipse.jdt.core.IBuffer;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IField;
+import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.ToolFactory;
@@ -18,7 +18,7 @@ import org.eclipse.jdt.core.formatter.CodeFormatter;
 import org.eclipse.jdt.core.formatter.DefaultCodeFormatterConstants;
 import org.eclipse.jdt.ui.IWorkingCopyManager;
 import org.eclipse.jdt.ui.JavaUI;
-import org.eclipse.jface.dialogs.Dialog;
+import org.eclipse.jface.window.Window;
 import org.eclipse.text.edits.TextEdit;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.handlers.HandlerUtil;
@@ -49,8 +49,8 @@ public class BuilderCreatorCommandHandler extends AbstractHandler {
 	private void modify(ICompilationUnit cu) throws JavaModelException {
 
 		BuilderCreatorDialog dialog = new BuilderCreatorDialog();
-		if (dialog.show(cu) == Dialog.OK) {
-			
+		if (dialog.show(cu) == Window.OK) {
+
 			List<IField> fields = dialog.getFields();
 			if (fields == null || fields.size() == 0) {
 				return;
@@ -60,17 +60,29 @@ public class BuilderCreatorCommandHandler extends AbstractHandler {
 				return;
 			}
 			IBuffer buffer = cu.getBuffer();
-			
+
 			if (dialog.getSettings().isConvertFieldsFinal()) {
 				for (IField f : fields) {
 					convertModifiers(f, cu);
 				}
 			}
-			
-			String generatedCode = BuilderCodeGenerator.generate(BuilderCodeGenerator.findFirstClassName(cu), fields, dialog.getSettings());
+
+			IType mainClass = BuilderCodeGenerator.findFirstClass(cu);
+			if (mainClass == null) {
+				return;
+			}
+			final String firstClassName = mainClass.getElementName();
+			String generatedCode = BuilderCodeGenerator.generate(firstClassName, fields, dialog.getSettings());
 			int position = field.getSourceRange().getOffset() + field.getSourceRange().getLength();
 			buffer.replace(position, 0, generatedCode);
-			
+
+			// add possible jackson annotations
+			String mainClassAnnotations = BuilderCodeGenerator.generateClassAnnotations(firstClassName, dialog.getSettings());
+			if (mainClassAnnotations != null) {
+				int pos = mainClass.getSourceRange().getOffset();
+				buffer.replace(pos, 0, mainClassAnnotations);
+			}
+
 			try {
 				cu.reconcile(ICompilationUnit.NO_AST, false, null, null);
 			} catch (JavaModelException e) {
@@ -96,7 +108,7 @@ public class BuilderCreatorCommandHandler extends AbstractHandler {
 
 	private void convertModifiers(IField field, ICompilationUnit cu) throws IndexOutOfBoundsException, JavaModelException {
 		IBuffer buffer = cu.getBuffer();
-		
+
 		String existings = "";
 		String additions = "";
 		int flags = field.getFlags();
@@ -132,7 +144,7 @@ public class BuilderCreatorCommandHandler extends AbstractHandler {
 		else if (additions.length() > 0) {
 			buffer.replace(field.getSourceRange().getOffset(), 0, additions + ' ');
 		}
-		
+
 		try {
 			cu.reconcile(ICompilationUnit.NO_AST, false, null, null);
 		} catch (JavaModelException e) {

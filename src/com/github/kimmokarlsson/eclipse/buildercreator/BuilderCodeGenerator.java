@@ -20,7 +20,7 @@ public class BuilderCodeGenerator {
 		private final boolean jacksonAnnotations;
 		private final String buildMethodName;
 		private final String methodPrefix;
-		
+
 		Settings(Builder b) {
 			this.convertFieldsFinal = b.convertFieldsFinal;
 			this.builderFromMethod = b.builderFromMethod;
@@ -28,7 +28,7 @@ public class BuilderCodeGenerator {
 			this.buildMethodName = checkString(b.buildMethodName, "build");
 			this.methodPrefix = checkString(b.methodPrefix, "");
 		}
-		
+
 		private String checkString(String s, String d) {
 			if (s == null || s.length() == 0 || s.trim().length() == 0) {
 				return d;
@@ -55,7 +55,7 @@ public class BuilderCodeGenerator {
 		public String getMethodPrefix() {
 			return methodPrefix;
 		}
-		
+
 		public static class Builder {
 			private boolean convertFieldsFinal;
 			private boolean builderFromMethod;
@@ -88,7 +88,7 @@ public class BuilderCodeGenerator {
 			}
 		}
 	}
-	
+
 	public static String convertFieldToPrivateFinal(IField f) throws JavaModelException {
 		int flags = f.getFlags();
 		StringBuilder sb = new StringBuilder();
@@ -98,13 +98,13 @@ public class BuilderCodeGenerator {
 		if (!Flags.isFinal(flags)) {
 			sb.append("final ");
 		}
-		
+
 		return sb.toString();
 	}
 
 	public static String generate(String className, List<IField> fields, Settings settings) throws JavaModelException {
 		StringBuilder sb = new StringBuilder();
-		
+
 		// private constructor using builder
 		sb.append("\n    ");
 		sb.append(className);
@@ -117,19 +117,32 @@ public class BuilderCodeGenerator {
 			sb.append(";\n");
 		}
 		sb.append("    }\n");
-		
+
+		// getter methods in parent class
+		for (IField f : fields) {
+			sb.append("    public ");
+			sb.append(getFieldType(f));
+			sb.append(" get");
+			sb.append(Character.toUpperCase(f.getElementName().charAt(0)));
+			sb.append(f.getElementName().substring(1));
+			sb.append("() {\n");
+			sb.append("        return this.");
+			sb.append(f.getElementName());
+			sb.append(";\n    }\n\n");
+		}
+
 		// builder method
 		sb.append("    public static Builder builder() {\n");
 		sb.append("        return new Builder();\n");
 		sb.append("    }\n");
-		
+
 		// builderFrom method
 		if (settings.isBuilderFromMethod()) {
 			sb.append("    public Builder builderFrom() {\n");
 			sb.append("        return new Builder(this);\n");
 			sb.append("    }\n");
 		}
-		
+
 		sb.append("\n\n");
 
 		// jackson annotations
@@ -140,7 +153,7 @@ public class BuilderCodeGenerator {
 			sb.append(settings.getBuildMethodName());
 			sb.append("\")\n");
 		}
-		
+
 		// builder class
 		sb.append("    public static class Builder {\n");
 		for (IField f : fields) {
@@ -188,10 +201,10 @@ public class BuilderCodeGenerator {
 		return sb.toString();
 	}
 
-	public static String findFirstClassName(ICompilationUnit compilationUnit) throws JavaModelException {
+	public static IType findFirstClass(ICompilationUnit compilationUnit) throws JavaModelException {
 		IType[] types = compilationUnit.getTypes();
 		if (types != null && types.length > 0) {
-			return types[0].getElementName();
+			return types[0];
 		}
 		return null;
 	}
@@ -199,7 +212,7 @@ public class BuilderCodeGenerator {
 	public static String getFieldType(IField f) throws JavaModelException {
 		return Signature.getSignatureSimpleName(f.getTypeSignature());
 	}
-	
+
 	public static Collection<IField> findAllFIelds(ICompilationUnit compilationUnit) throws JavaModelException {
 		Collection<IField> list = new ArrayList<>();
 		IType[] types = compilationUnit.getTypes();
@@ -207,5 +220,18 @@ public class BuilderCodeGenerator {
 			list.addAll(Arrays.asList(types[0].getFields()));
 		}
 		return list;
+	}
+
+	public static String generateClassAnnotations(String firstClassName, Settings settings) {
+		if (settings.isJacksonAnnotations()) {
+			StringBuilder sb = new StringBuilder();
+			sb.append("@JsonInclude(JsonInclude.Include.NON_NULL)\n");
+			sb.append("@JsonIgnoreProperties(ignoreUnknown=true)\n");
+			sb.append("@JsonDeserialize(builder=");
+			sb.append(firstClassName);
+			sb.append(".Builder.class)\n");
+			return sb.toString();
+		}
+		return null;
 	}
 }

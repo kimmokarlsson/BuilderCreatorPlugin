@@ -211,7 +211,6 @@ public class BuilderFieldCompletionProposal extends ASTRewriteCorrectionProposal
 		body.statements().add(ret);
 		setter.setBody(body);
 
-
 		MethodDeclaration neighbor = null;
 		for (MethodDeclaration m : modifiedBuilderClass.getMethods()) {
 			if (m.getName().getIdentifier().equals(neighborName)) {

@@ -3,7 +3,9 @@ package com.github.kimmokarlsson.eclipse.buildercreator;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
+import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.ui.text.java.IInvocationContext;
 import org.eclipse.jdt.ui.text.java.IJavaCompletionProposal;
 import org.eclipse.jdt.ui.text.java.IProblemLocation;
@@ -13,15 +15,31 @@ public class BuilderFieldQuickAssistHandler implements IQuickAssistProcessor {
 
 	public BuilderFieldQuickAssistHandler() {
 	}
-	
+
 	@Override
 	public boolean hasAssists(IInvocationContext context) throws CoreException {
 		return context != null && isClassFieldWithBuilder(context.getCoveringNode());
 	}
 
+	private FieldDeclaration findFieldNode(ASTNode node) {
+		FieldDeclaration decl = null;
+		if (node instanceof SimpleName && node.getParent() instanceof VariableDeclarationFragment
+				&& node.getParent().getParent() instanceof FieldDeclaration) {
+			decl = (FieldDeclaration) node.getParent().getParent();
+		}
+		else if (node instanceof VariableDeclarationFragment && node.getParent() instanceof FieldDeclaration) {
+			decl = (FieldDeclaration) node.getParent();
+		}
+		else if (node instanceof FieldDeclaration) {
+			decl = (FieldDeclaration) node;
+		}
+		return decl;
+	}
+
 	private boolean isClassFieldWithBuilder(ASTNode node) {
-		return node instanceof FieldDeclaration && node.getParent() instanceof TypeDeclaration
-				&& isBuilderSubClass((TypeDeclaration)node.getParent());
+		FieldDeclaration decl = findFieldNode(node);
+		return decl != null && decl.getParent() instanceof TypeDeclaration
+				&& isBuilderSubClass((TypeDeclaration)decl.getParent());
 	}
 
 	private boolean isBuilderSubClass(TypeDeclaration parent) {
@@ -39,11 +57,12 @@ public class BuilderFieldQuickAssistHandler implements IQuickAssistProcessor {
 	@Override
 	public IJavaCompletionProposal[] getAssists(IInvocationContext context, IProblemLocation[] locations)
 			throws CoreException {
-		ASTNode fieldNode = context.getCoveringNode();
-		if (!isClassFieldWithBuilder(fieldNode)) {
+		ASTNode node = context.getCoveringNode();
+		if (!isClassFieldWithBuilder(node)) {
 			return new IJavaCompletionProposal[] { };
 		}
-		IJavaCompletionProposal prop = new BuilderFieldCompletionProposal(context.getCompilationUnit(), (FieldDeclaration)fieldNode);
+		FieldDeclaration fieldNode = findFieldNode(node);
+		IJavaCompletionProposal prop = new BuilderFieldCompletionProposal(context.getCompilationUnit(), fieldNode);
 		return new IJavaCompletionProposal[] { prop };
 	}
 }

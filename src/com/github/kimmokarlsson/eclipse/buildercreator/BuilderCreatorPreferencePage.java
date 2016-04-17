@@ -25,19 +25,15 @@ public class BuilderCreatorPreferencePage extends FieldEditorPreferencePage impl
 	public void init(IWorkbench workbench) {
 	}
 
-	private String getPrefName(String suffix) {
-		return getClass().getPackage().getName() + suffix;
-	}
-
 	@Override
 	protected void createFieldEditors() {
-		addField(new BooleanFieldEditor(getPrefName(".prefs.privateFinal"),
+		addField(new BooleanFieldEditor(BuilderCreatorPrefs.getQualifiedName(BuilderCreatorPrefs.PREF_CONVERT_FIELDS),
 				"Convert fields into private final",
 				SWT.NONE, getFieldEditorParent()));
-		addField(new BooleanFieldEditor(getPrefName(".prefs.builderFrom"),
+		addField(new BooleanFieldEditor(BuilderCreatorPrefs.getQualifiedName(BuilderCreatorPrefs.PREF_CREATE_BUILDERFROM_METHOD),
 				"Create builderFrom Method",
 				SWT.NONE, getFieldEditorParent()));
-		addField(new BooleanFieldEditor(getPrefName(".prefs.jackson"),
+		addField(new BooleanFieldEditor(BuilderCreatorPrefs.getQualifiedName(BuilderCreatorPrefs.PREF_JACKSON_ANNOTATIONS),
 				"Add Jackson Annotations",
 				SWT.NONE, getFieldEditorParent()));
 	}
