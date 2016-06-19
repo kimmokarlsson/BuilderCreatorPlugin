@@ -176,8 +176,14 @@ public class BuilderCodeGenerator {
 		// setter methods
 		for (IField f : fields) {
 			sb.append("        public Builder ");
-			sb.append(settings.getMethodPrefix());
-			sb.append(f.getElementName());
+			if (settings.getMethodPrefix().length() > 0) {
+				sb.append(settings.getMethodPrefix());
+				sb.append(Character.toUpperCase(f.getElementName().charAt(0)));
+				sb.append(f.getElementName().substring(1));
+			}
+			else {
+				sb.append(f.getElementName());
+			}
 			sb.append("(");
 			sb.append(getFieldType(f));
 			sb.append(" s) {\n");

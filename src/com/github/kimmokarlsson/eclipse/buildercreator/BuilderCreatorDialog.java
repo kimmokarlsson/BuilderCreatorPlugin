@@ -29,12 +29,12 @@ public class BuilderCreatorDialog extends AbstractModalDialog {
 	private List<IField> selectedFields;
 	private IField lastField;
 	private BuilderCodeGenerator.Settings settings;
-    
+
 	public BuilderCreatorDialog() {
 		super(BuilderCreatorPlugin.getDefault().getWorkbench().getModalDialogShellProvider().getShell(), SWT.RESIZE);
 		selectedFields = new ArrayList<>();
 	}
-	
+
 	public BuilderCodeGenerator.Settings getSettings() {
 		return settings;
 	}
@@ -42,11 +42,11 @@ public class BuilderCreatorDialog extends AbstractModalDialog {
 	public List<IField> getFields() {
 		return selectedFields;
 	}
-	
+
 	public IField getLastField() {
 		return lastField;
 	}
-	
+
 	public int show(ICompilationUnit compilationUnit) throws JavaModelException {
 		final Shell shell = new Shell(getParent(), SWT.DIALOG_TRIM | SWT.APPLICATION_MODAL | SWT.CENTER | SWT.RESIZE);
         shell.setText("Generate Builder");
@@ -62,7 +62,7 @@ public class BuilderCreatorDialog extends AbstractModalDialog {
         GridData fieldTableData = new GridData(SWT.FILL, SWT.FILL, true, true);
         fieldTableData.verticalSpan = 5;
         fieldTable.setLayoutData(fieldTableData);
-        
+
         Collection<IField> fields = BuilderCodeGenerator.findAllFIelds(compilationUnit);
         final Collection<TableItem> fieldButtons = new ArrayList<>();
         for (IField field : fields) {
@@ -73,7 +73,7 @@ public class BuilderCreatorDialog extends AbstractModalDialog {
             fieldButtons.add(item);
             lastField = field;
         }
-        
+
         Button btnSelectAll = new Button(shell, SWT.PUSH);
         btnSelectAll.setText("Select All");
         GridData btnSelectAllLayoutData = new GridData();
@@ -110,27 +110,28 @@ public class BuilderCreatorDialog extends AbstractModalDialog {
         optionGroup.setLayoutData(optionGridData);
 
         final Button convertFieldsToFinal = new Button(optionGroup, SWT.CHECK);
-        convertFieldsToFinal.setSelection(true);
+        convertFieldsToFinal.setSelection(BuilderCreatorPrefs.getBoolean(BuilderCreatorPrefs.PREF_CONVERT_FIELDS));
         convertFieldsToFinal.setText("Convert fields to private final");
 
         final Button createBuilderFromMethod = new Button(optionGroup, SWT.CHECK);
-        createBuilderFromMethod.setSelection(true);
+        createBuilderFromMethod.setSelection(BuilderCreatorPrefs.getBoolean(BuilderCreatorPrefs.PREF_CREATE_BUILDERFROM_METHOD));
         createBuilderFromMethod.setText("Create builderFrom method");
 
         final Button createJacksonAnnotations = new Button(optionGroup, SWT.CHECK);
-        createJacksonAnnotations.setSelection(true);
+        createJacksonAnnotations.setSelection(BuilderCreatorPrefs.getBoolean(BuilderCreatorPrefs.PREF_JACKSON_ANNOTATIONS));
         createJacksonAnnotations.setText("Create Jackson annotations");
 
         final Label builderLabel = new Label(optionGroup, SWT.NONE);
         builderLabel.setText("Builder method prefix:");
         final Text builderMethodPrefix = new Text(optionGroup, SWT.BORDER);
         builderMethodPrefix.setMessage("Builder field setter method prefix");
+        builderMethodPrefix.setText(BuilderCreatorPrefs.getString(BuilderCreatorPrefs.PREF_BUILDER_PREFIX));
 
         final Label methodLabel = new Label(optionGroup, SWT.NONE);
         methodLabel.setText("Builder method name:");
         final Text buildMethodName = new Text(optionGroup, SWT.BORDER);
         buildMethodName.setMessage("Build method name");
-        buildMethodName.setText("build");
+        buildMethodName.setText(BuilderCreatorPrefs.getString(BuilderCreatorPrefs.PREF_BUILDER_METHOD_NAME));
 
         Group buttonContainer = new Group(shell, SWT.SHADOW_NONE);
         buttonContainer.setLayout(new GridLayout(2, false));
@@ -138,7 +139,7 @@ public class BuilderCreatorDialog extends AbstractModalDialog {
         containerData.horizontalSpan = 2;
         containerData.horizontalAlignment = SWT.RIGHT;
         buttonContainer.setLayoutData(containerData);
-        
+
         final Button cancelButton = new Button(buttonContainer, SWT.PUSH);
         GridData cancelGridData = new GridData(SWT.CENTER, SWT.CENTER, true, true);
         cancelGridData.minimumWidth = 150;

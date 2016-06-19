@@ -14,7 +14,9 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
+import org.eclipse.jdt.core.dom.IExtendedModifier;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.Modifier.ModifierKeyword;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.ParameterizedType;
@@ -69,8 +71,46 @@ public class BuilderFieldCompletionProposal extends ASTRewriteCorrectionProposal
 		TypeDeclaration modifiedParentClass = (TypeDeclaration) modifiedBuilderClass.getParent();
 		AST ast = modifiedParentClass.getParent().getAST();
 
-		VariableDeclarationFragment frag = ast.newVariableDeclarationFragment();
+		// extract the name of the field we are adding
 		String fieldName = ((VariableDeclarationFragment)fieldDefNode.fragments().get(0)).getName().getIdentifier();
+
+		// find field in modified class
+		if (BuilderCreatorPrefs.getBoolean(BuilderCreatorPrefs.PREF_CONVERT_FIELDS)) {
+			for (FieldDeclaration fd : modifiedParentClass.getFields()) {
+				if (fd.fragments().get(0) instanceof VariableDeclarationFragment) {
+					VariableDeclarationFragment vd = (VariableDeclarationFragment) fd.fragments().get(0);
+					if (vd.getName().getIdentifier().equals(fieldName)) {
+						boolean privateFound = false;
+						boolean finalFound = false;
+						for (Object mod : fd.modifiers()) {
+							if (mod instanceof IExtendedModifier) {
+								IExtendedModifier em = ((IExtendedModifier)mod);
+								if (em.isModifier()) {
+									Modifier m = (Modifier) em;
+									if (m.isPrivate()) {
+										privateFound = true;
+									}
+									else if (m.isFinal()) {
+										finalFound = true;
+									}
+								}
+							}
+						}
+						if (!privateFound) {
+							if (finalFound) {
+								fd.modifiers().add(fd.modifiers().size()-1, ast.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD));
+							}
+							else {
+								fd.modifiers().add(ast.newModifier(Modifier.ModifierKeyword.PRIVATE_KEYWORD));
+							}
+						}
+						if (!finalFound) {
+							fd.modifiers().add(ast.newModifier(Modifier.ModifierKeyword.FINAL_KEYWORD));
+						}
+					}
+				}
+			}
+		}
 
 		// find parent constructor with Builder class as single parameter
 		MethodDeclaration pconstr = null;
@@ -157,6 +197,7 @@ public class BuilderFieldCompletionProposal extends ASTRewriteCorrectionProposal
 
 		// add builder field
 		{
+			VariableDeclarationFragment frag = ast.newVariableDeclarationFragment();
 			frag.setName(ast.newSimpleName(fieldName));
 			FieldDeclaration builderField = ast.newFieldDeclaration(frag);
 			List modifiers = builderField.modifiers();
@@ -189,8 +230,17 @@ public class BuilderFieldCompletionProposal extends ASTRewriteCorrectionProposal
 		}
 
 		// add setter method to builder
+		String methodName;
+		String methodPrefix = BuilderCreatorPrefs.getString(BuilderCreatorPrefs.PREF_BUILDER_PREFIX);
+		if (methodPrefix == null || methodPrefix.length() == 0) {
+			methodName = fieldName;
+		}
+		else {
+			methodName = methodPrefix + fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1);
+		}
+
 		MethodDeclaration setter = ast.newMethodDeclaration();
-		setter.setName(ast.newSimpleName(fieldName));
+		setter.setName(ast.newSimpleName(methodName));
 		setter.modifiers().add(ast.newModifier(ModifierKeyword.PUBLIC_KEYWORD));
 		setter.setReturnType2(ast.newSimpleType(ast.newSimpleName("Builder")));
 		SingleVariableDeclaration par = ast.newSingleVariableDeclaration();
