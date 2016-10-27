@@ -1,16 +1,16 @@
 package com.github.kimmokarlsson.eclipse.buildercreator;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-
 import org.eclipse.jdt.core.Flags;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IField;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.Signature;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 
 public class BuilderCodeGenerator {
 
@@ -121,12 +121,18 @@ public class BuilderCodeGenerator {
 		// getter methods in parent class
 		for (IField f : fields) {
 			sb.append("    public ");
-			sb.append(getFieldType(f));
-			sb.append(" get");
+			String fieldType = getFieldType(f);
+			sb.append(fieldType);
+			if ("boolean".equals(fieldType)) {
+				sb.append(" is");
+			}
+			else {
+				sb.append(" get");
+			}
 			sb.append(Character.toUpperCase(f.getElementName().charAt(0)));
 			sb.append(f.getElementName().substring(1));
 			sb.append("() {\n");
-			sb.append("        return this.");
+			sb.append("        return ");
 			sb.append(f.getElementName());
 			sb.append(";\n    }\n\n");
 		}

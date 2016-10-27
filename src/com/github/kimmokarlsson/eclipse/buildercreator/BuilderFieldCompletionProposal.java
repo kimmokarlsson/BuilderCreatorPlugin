@@ -1,9 +1,5 @@
 package com.github.kimmokarlsson.eclipse.buildercreator;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
@@ -31,6 +27,10 @@ import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.ui.text.java.correction.ASTRewriteCorrectionProposal;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 public class BuilderFieldCompletionProposal extends ASTRewriteCorrectionProposal {
 
@@ -72,7 +72,8 @@ public class BuilderFieldCompletionProposal extends ASTRewriteCorrectionProposal
 		AST ast = modifiedParentClass.getParent().getAST();
 
 		// extract the name of the field we are adding
-		String fieldName = ((VariableDeclarationFragment)fieldDefNode.fragments().get(0)).getName().getIdentifier();
+		final VariableDeclarationFragment fieldDeclFrag = (VariableDeclarationFragment)fieldDefNode.fragments().get(0);
+		final String fieldName = fieldDeclFrag.getName().getIdentifier();
 
 		// find field in modified class
 		if (BuilderCreatorPrefs.getBoolean(BuilderCreatorPrefs.PREF_CONVERT_FIELDS)) {
@@ -121,6 +122,26 @@ public class BuilderFieldCompletionProposal extends ASTRewriteCorrectionProposal
 			}
 		}
 
+		// find origin field neighbor
+		int fieldIndex = 0;
+		for (FieldDeclaration f : parentClass.getFields()) {
+			if (f.equals(fieldDefNode)) {
+				break;
+			}
+			fieldIndex++;
+		}
+		// check neighbors
+		int neighborOffset = 0;
+		FieldDeclaration neighborField = null;
+		if (fieldIndex > 0) {
+			neighborField = parentClass.getFields()[fieldIndex-1];
+		}
+		else {
+			neighborOffset = -1;
+			neighborField = parentClass.getFields()[fieldIndex+1];
+		}
+		String neighborName = ((VariableDeclarationFragment)neighborField.fragments().get(0)).getName().getIdentifier();
+
 		// add parent class constructor assignment
 		if (pconstr != null) {
 			Assignment ass = ast.newAssignment();
@@ -133,48 +154,45 @@ public class BuilderFieldCompletionProposal extends ASTRewriteCorrectionProposal
 			otherField.setName(ast.newSimpleName(fieldName));
 			ass.setRightHandSide(otherField);
 			ExpressionStatement stmt = ast.newExpressionStatement(ass);
-			pconstr.getBody().statements().add(stmt);
-		}
 
-		// find origin field neighbor
-		int fieldIndex = 0;
-		for (FieldDeclaration f : parentClass.getFields()) {
-			if (f.equals(fieldDefNode)) {
-				break;
+			int ctrIndex = 0;
+			for (Object ctrBodyStmtObj : pconstr.getBody().statements()) {
+				if (ctrBodyStmtObj instanceof ExpressionStatement
+						&& ((ExpressionStatement)ctrBodyStmtObj).getExpression() instanceof Assignment) {
+					Assignment bodyAss = (Assignment) ((ExpressionStatement)ctrBodyStmtObj).getExpression();
+					if (bodyAss.getLeftHandSide() instanceof FieldAccess
+							&& ((FieldAccess)bodyAss.getLeftHandSide()).getName().getIdentifier().equals(neighborName)) {
+						ctrIndex++;
+						break;
+					}
+				}
+				ctrIndex++;
 			}
-			fieldIndex++;
+			// insert into correct place
+			pconstr.getBody().statements().add(ctrIndex+neighborOffset, stmt);
 		}
-		// check neighbors
-		FieldDeclaration neighborField = null;
-		if (fieldIndex > 0) {
-			neighborField = parentClass.getFields()[fieldIndex-1];
-		}
-		else {
-			neighborField = parentClass.getFields()[fieldIndex+1];
-		}
-		String neighborName = ((VariableDeclarationFragment)neighborField.fragments().get(0)).getName().getIdentifier();
 
 		// add parent class getter
 		{
 			MethodDeclaration getter = ast.newMethodDeclaration();
-			getter.setName(ast.newSimpleName(getGetterName(fieldName)));
+			getter.setName(ast.newSimpleName(getGetterName(fieldName, fieldDefNode.getType())));
 			getter.modifiers().add(ast.newModifier(ModifierKeyword.PUBLIC_KEYWORD));
 			getter.setReturnType2(createTypeCopy(fieldDefNode.getType(), ast));
 			Block body = ast.newBlock();
 			ReturnStatement ret = ast.newReturnStatement();
-			FieldAccess thisField = ast.newFieldAccess();
-			thisField.setName(ast.newSimpleName(fieldName));
-			thisField.setExpression(ast.newThisExpression());
-			ret.setExpression(thisField);
+			ret.setExpression(ast.newSimpleName(fieldName));
 			body.statements().add(ret);
 			getter.setBody(body);
 
 			// find neighbor field getter
+			boolean exists = false;
 			MethodDeclaration neighborGetter = null;
 			for (MethodDeclaration m : modifiedParentClass.getMethods()) {
-				if (m.getName().getIdentifier().equals(getGetterName(neighborName))) {
+				if (m.getName().getIdentifier().equals(getGetterName(neighborName, neighborField.getType()))) {
 					neighborGetter = m;
-					break;
+				}
+				else if (m.getName().getIdentifier().equals(getGetterName(fieldName, fieldDefNode.getType()))) {
+					exists = true;
 				}
 			}
 
@@ -182,7 +200,9 @@ public class BuilderFieldCompletionProposal extends ASTRewriteCorrectionProposal
 			if (index <= 0) {
 				index = modifiedParentClass.bodyDeclarations().size()-1;
 			}
-			modifiedParentClass.bodyDeclarations().add(index+1, getter);
+			if (!exists) {
+				modifiedParentClass.bodyDeclarations().add(index+1+neighborOffset, getter);
+			}
 		}
 
 		// find neighbor from builder
@@ -203,7 +223,7 @@ public class BuilderFieldCompletionProposal extends ASTRewriteCorrectionProposal
 			List modifiers = builderField.modifiers();
 			modifiers.add(ast.newModifier(ModifierKeyword.PRIVATE_KEYWORD));
 			builderField.setType(createTypeCopy(fieldDefNode.getType(), ast));
-			modifiedBuilderClass.bodyDeclarations().add(index+1, builderField);
+			modifiedBuilderClass.bodyDeclarations().add(index+1+neighborOffset, builderField);
 		}
 
 		// find builder constructor with parent class as single parameter
@@ -226,7 +246,22 @@ public class BuilderFieldCompletionProposal extends ASTRewriteCorrectionProposal
 			otherField.setName(ast.newSimpleName(fieldName));
 			ass.setRightHandSide(otherField);
 			ExpressionStatement stmt = ast.newExpressionStatement(ass);
-			constr.getBody().statements().add(stmt);
+
+			int ctrIndex = 0;
+			for (Object ctrBodyStmtObj : constr.getBody().statements()) {
+				if (ctrBodyStmtObj instanceof ExpressionStatement
+						&& ((ExpressionStatement)ctrBodyStmtObj).getExpression() instanceof Assignment) {
+					Assignment bodyAss = (Assignment) ((ExpressionStatement)ctrBodyStmtObj).getExpression();
+					if (bodyAss.getLeftHandSide() instanceof FieldAccess
+							&& ((FieldAccess)bodyAss.getLeftHandSide()).getName().getIdentifier().equals(neighborName)) {
+						ctrIndex++;
+						break;
+					}
+				}
+				ctrIndex++;
+			}
+			// insert into correct place
+			constr.getBody().statements().add(ctrIndex+neighborOffset, stmt);
 		}
 
 		// add setter method to builder
@@ -273,14 +308,18 @@ public class BuilderFieldCompletionProposal extends ASTRewriteCorrectionProposal
 		if (setterIndex <= 0) {
 			setterIndex = modifiedBuilderClass.bodyDeclarations().size()-1;
 		}
-		modifiedBuilderClass.bodyDeclarations().add(setterIndex+1, setter);
+		modifiedBuilderClass.bodyDeclarations().add(setterIndex+1+neighborOffset, setter);
 
 		rewrite.replace(parentClass, modifiedParentClass, null);
 		return rewrite;
 	}
 
-	private static String getGetterName(String fieldName) {
-		return "get"+Character.toUpperCase(fieldName.charAt(0))+fieldName.substring(1);
+	private static String getGetterName(String fieldName, Type type) {
+		String prefix = "get";
+		if (type.isPrimitiveType() && ((PrimitiveType)type).getPrimitiveTypeCode() == PrimitiveType.BOOLEAN) {
+			prefix = "is";
+		}
+		return prefix+Character.toUpperCase(fieldName.charAt(0))+fieldName.substring(1);
 	}
 
 	private static Type createTypeCopy(Type type, AST ast) {
