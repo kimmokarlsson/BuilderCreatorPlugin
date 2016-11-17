@@ -1,10 +1,8 @@
 package com.github.kimmokarlsson.eclipse.buildercreator;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-
+import org.eclipse.core.resources.IProject;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.QualifiedName;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IField;
 import org.eclipse.jdt.core.JavaModelException;
@@ -22,6 +20,11 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.swt.widgets.Text;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
 
 public class BuilderCreatorDialog extends AbstractModalDialog {
 
@@ -109,29 +112,31 @@ public class BuilderCreatorDialog extends AbstractModalDialog {
         optionGridData.horizontalAlignment = SWT.FILL;
         optionGroup.setLayoutData(optionGridData);
 
+        IProject project = compilationUnit.getParent().getJavaProject().getAdapter(IProject.class);
+
         final Button convertFieldsToFinal = new Button(optionGroup, SWT.CHECK);
-        convertFieldsToFinal.setSelection(BuilderCreatorPrefs.getBoolean(BuilderCreatorPrefs.PREF_CONVERT_FIELDS));
+        convertFieldsToFinal.setSelection(getBooleanProperty(project, BuilderCreatorPrefs.PREF_CONVERT_FIELDS));
         convertFieldsToFinal.setText("Convert fields to private final");
 
         final Button createBuilderFromMethod = new Button(optionGroup, SWT.CHECK);
-        createBuilderFromMethod.setSelection(BuilderCreatorPrefs.getBoolean(BuilderCreatorPrefs.PREF_CREATE_BUILDERFROM_METHOD));
+        createBuilderFromMethod.setSelection(getBooleanProperty(project, BuilderCreatorPrefs.PREF_CREATE_BUILDERFROM_METHOD));
         createBuilderFromMethod.setText("Create builderFrom method");
 
         final Button createJacksonAnnotations = new Button(optionGroup, SWT.CHECK);
-        createJacksonAnnotations.setSelection(BuilderCreatorPrefs.getBoolean(BuilderCreatorPrefs.PREF_JACKSON_ANNOTATIONS));
+        createJacksonAnnotations.setSelection(getBooleanProperty(project, BuilderCreatorPrefs.PREF_JACKSON_ANNOTATIONS));
         createJacksonAnnotations.setText("Create Jackson annotations");
 
         final Label builderLabel = new Label(optionGroup, SWT.NONE);
         builderLabel.setText("Builder method prefix:");
         final Text builderMethodPrefix = new Text(optionGroup, SWT.BORDER);
         builderMethodPrefix.setMessage("Builder field setter method prefix");
-        builderMethodPrefix.setText(BuilderCreatorPrefs.getString(BuilderCreatorPrefs.PREF_BUILDER_PREFIX));
+        builderMethodPrefix.setText(getStringProperty(project, BuilderCreatorPrefs.PREF_BUILDER_PREFIX));
 
         final Label methodLabel = new Label(optionGroup, SWT.NONE);
         methodLabel.setText("Builder method name:");
         final Text buildMethodName = new Text(optionGroup, SWT.BORDER);
         buildMethodName.setMessage("Build method name");
-        buildMethodName.setText(BuilderCreatorPrefs.getString(BuilderCreatorPrefs.PREF_BUILDER_METHOD_NAME));
+        buildMethodName.setText(getStringProperty(project, BuilderCreatorPrefs.PREF_BUILDER_METHOD_NAME));
 
         Group buttonContainer = new Group(shell, SWT.SHADOW_NONE);
         buttonContainer.setLayout(new GridLayout(2, false));
@@ -184,5 +189,31 @@ public class BuilderCreatorDialog extends AbstractModalDialog {
         optionGroup.pack();
         display(shell);
 		return status;
+	}
+
+	private boolean getBooleanProperty(IProject project, String localName) {
+	    try {
+			String prop = project.getPersistentProperty(new QualifiedName(BuilderCreatorPrefs.PREF_PREFIX, localName));
+			if (prop != null) {
+				return Boolean.parseBoolean(prop);
+			}
+			return BuilderCreatorPrefs.getBoolean(localName);
+		} catch (CoreException e) {
+		    ErrorLog.error("Reading project property", e);
+		}
+	    return false;
+	}
+
+	private String getStringProperty(IProject project, String localName) {
+	    try {
+			String prop = project.getPersistentProperty(new QualifiedName(BuilderCreatorPrefs.PREF_PREFIX, localName));
+			if (prop != null) {
+				return prop;
+			}
+			return BuilderCreatorPrefs.getString(localName);
+		} catch (CoreException e) {
+		    ErrorLog.error("Reading project property", e);
+		}
+	    return null;
 	}
 }

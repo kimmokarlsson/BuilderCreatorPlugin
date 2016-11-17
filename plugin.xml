@@ -48,14 +48,15 @@
             category="org.eclipse.jdt.ui.propertyPages.JavaEditorPropertyPage"
             class="com.github.kimmokarlsson.eclipse.buildercreator.BuilderCreatorPropertyPage"
             id="com.github.kimmokarlsson.eclipse.buildercreator.props.page1"
-            name="Builder Creator"
-            objectClass="org.eclipse.core.resources.IProject">
+            name="Builder Creator">
          <enabledWhen>
             <adapt type="org.eclipse.core.resources.IProject">
-		          <test property="org.eclipse.core.resources.projectNature"
-		              value="org.eclipse.jdt.core.javanature"/>
             </adapt>
          </enabledWhen>
+         <filter
+               name="nature"
+               value="org.eclipse.jdt.core.javanature">
+         </filter>
       </page>
    </extension>
 

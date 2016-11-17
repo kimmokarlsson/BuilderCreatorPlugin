@@ -153,6 +153,7 @@ public class BuilderCodeGenerator {
 
 		// jackson annotations
 		if (settings.isJacksonAnnotations()) {
+			sb.append("    @JsonIgnoreProperties(ignoreUnknown=true)\n");
 			sb.append("    @JsonPOJOBuilder(withPrefix=\"");
 			sb.append(settings.getMethodPrefix());
 			sb.append("\", buildMethodName=\"");
@@ -238,7 +239,6 @@ public class BuilderCodeGenerator {
 		if (settings.isJacksonAnnotations()) {
 			StringBuilder sb = new StringBuilder();
 			sb.append("@JsonInclude(JsonInclude.Include.NON_NULL)\n");
-			sb.append("@JsonIgnoreProperties(ignoreUnknown=true)\n");
 			sb.append("@JsonDeserialize(builder=");
 			sb.append(firstClassName);
 			sb.append(".Builder.class)\n");
