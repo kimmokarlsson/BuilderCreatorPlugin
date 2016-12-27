@@ -1,8 +1,5 @@
 package com.github.kimmokarlsson.eclipse.buildercreator;
 
-import java.util.List;
-import java.util.Map;
-
 import org.eclipse.core.commands.AbstractHandler;
 import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.core.commands.ExecutionException;
@@ -23,6 +20,12 @@ import org.eclipse.text.edits.TextEdit;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.handlers.HandlerUtil;
 
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Main entry point for starting code generation for Builder class.
+ */
 public class BuilderCreatorCommandHandler extends AbstractHandler {
 
 	@Override

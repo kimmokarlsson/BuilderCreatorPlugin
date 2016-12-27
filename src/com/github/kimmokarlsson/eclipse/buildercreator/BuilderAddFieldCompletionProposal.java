@@ -32,12 +32,12 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class BuilderFieldCompletionProposal extends ASTRewriteCorrectionProposal {
+public class BuilderAddFieldCompletionProposal extends ASTRewriteCorrectionProposal {
 
 	private static final int RELEVANCE = 10;
 	private static final String NAME = "Generate Builder Field";
 
-	public BuilderFieldCompletionProposal(ICompilationUnit cu, FieldDeclaration fieldDefNode) {
+	public BuilderAddFieldCompletionProposal(ICompilationUnit cu, FieldDeclaration fieldDefNode) {
 		super(NAME, cu, createRewrite(cu, fieldDefNode), RELEVANCE);
 	}
 

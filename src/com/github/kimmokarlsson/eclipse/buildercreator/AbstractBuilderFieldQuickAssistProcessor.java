@@ -1,6 +1,7 @@
 package com.github.kimmokarlsson.eclipse.buildercreator;
 
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.SimpleName;
@@ -11,9 +12,9 @@ import org.eclipse.jdt.ui.text.java.IJavaCompletionProposal;
 import org.eclipse.jdt.ui.text.java.IProblemLocation;
 import org.eclipse.jdt.ui.text.java.IQuickAssistProcessor;
 
-public class BuilderFieldQuickAssistHandler implements IQuickAssistProcessor {
+public abstract class AbstractBuilderFieldQuickAssistProcessor implements IQuickAssistProcessor {
 
-	public BuilderFieldQuickAssistHandler() {
+	public AbstractBuilderFieldQuickAssistProcessor() {
 	}
 
 	@Override
@@ -62,7 +63,10 @@ public class BuilderFieldQuickAssistHandler implements IQuickAssistProcessor {
 			return new IJavaCompletionProposal[] { };
 		}
 		FieldDeclaration fieldNode = findFieldNode(node);
-		IJavaCompletionProposal prop = new BuilderFieldCompletionProposal(context.getCompilationUnit(), fieldNode);
+		IJavaCompletionProposal prop = createBuilderFieldCompletionProposal(context.getCompilationUnit(), fieldNode);
 		return new IJavaCompletionProposal[] { prop };
 	}
+
+	protected abstract IJavaCompletionProposal createBuilderFieldCompletionProposal(
+			ICompilationUnit compilationUnit, FieldDeclaration fieldNode);
 }

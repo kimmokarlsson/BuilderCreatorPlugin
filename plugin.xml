@@ -5,7 +5,7 @@
    <extension
          point="org.eclipse.jdt.ui.quickAssistProcessors">
       <quickAssistProcessor
-            class="com.github.kimmokarlsson.eclipse.buildercreator.BuilderFieldQuickAssistHandler"
+            class="com.github.kimmokarlsson.eclipse.buildercreator.BuilderAddFieldQuickAssistProcessor"
             id="com.github.kimmokarlsson.eclipse.buildercreator.quickAssistProcessor">
       </quickAssistProcessor>
    </extension>
@@ -17,6 +17,12 @@
             id="com.github.kimmokarlsson.eclipse.buildercreator.createBuilderCommand"
             name="Create Builder using fields">
       </command>
+      <command
+            categoryId="org.eclipse.jdt.ui.category.refactoring"
+            defaultHandler="com.github.kimmokarlsson.eclipse.buildercreator.BuilderFieldRenameCommandHandler"
+            id="com.github.kimmokarlsson.eclipse.buildercreator.renameFieldBuilderCommand"
+            name="Rename Builder Field">
+      </command>
    </extension>
    <extension
          point="org.eclipse.ui.menus">
@@ -26,6 +32,14 @@
          <command
                commandId="com.github.kimmokarlsson.eclipse.buildercreator.createBuilderCommand"
                label="Create Builder using fields"
+               style="push">
+            <visibleWhen
+                  checkEnabled="true">
+            </visibleWhen>
+         </command>
+         <command
+               commandId="com.github.kimmokarlsson.eclipse.buildercreator.renameFieldBuilderCommand"
+               label="Rename Builder Field"
                style="push">
             <visibleWhen
                   checkEnabled="true">
@@ -58,6 +72,31 @@
                value="org.eclipse.jdt.core.javanature">
          </filter>
       </page>
+   </extension>
+   <extension
+         point="org.eclipse.ltk.core.refactoring.renameParticipants">
+      <renameParticipant
+            class="com.github.kimmokarlsson.eclipse.buildercreator.BuilderFieldRenameParticipant"
+            id="com.github.kimmokarlsson.eclipse.buildercreator.renameParticipant1"
+            name="Builder Field Rename Participant">
+         <enablement>
+            <with
+                  variable="affectedNatures">
+               <iterate
+                     operator="or">
+                  <equals
+                        value="org.eclipse.jdt.core.javanature">
+                  </equals>
+               </iterate>
+            </with>
+            <with
+                  variable="element">
+               <instanceof
+                     value="org.eclipse.jdt.core.IField">
+               </instanceof>
+            </with>
+         </enablement>
+      </renameParticipant>
    </extension>
 
 </plugin>
