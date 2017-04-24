@@ -10,6 +10,7 @@ import org.eclipse.jdt.core.Signature;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 public class BuilderCodeGenerator {
@@ -226,13 +227,39 @@ public class BuilderCodeGenerator {
 		return Signature.getSignatureSimpleName(f.getTypeSignature());
 	}
 
-	public static Collection<IField> findAllFIelds(ICompilationUnit compilationUnit) throws JavaModelException {
-		Collection<IField> list = new ArrayList<>();
+	public static Collection<IField> findAllFields(ICompilationUnit compilationUnit) throws JavaModelException {
+		return findAllFields(compilationUnit, null);
+	}
+
+	public static Collection<IField> findAllFields(ICompilationUnit compilationUnit, String className) throws JavaModelException {
 		IType[] types = compilationUnit.getTypes();
-		if (types != null && types.length > 0) {
-			list.addAll(Arrays.asList(types[0].getFields()));
+		IType t = findType(types, className);
+		if (t != null) {
+			Collection<IField> list = new ArrayList<>();
+			list.addAll(Arrays.asList(t.getFields()));
+			return list;
 		}
-		return list;
+		return Collections.emptyList();
+	}
+
+	public static IType findType(IType[] types, String className) throws JavaModelException {
+		if (types != null) {
+			if (className == null) {
+				return types[0];
+			}
+			for (IType t : types) {
+				if (t.getTypeQualifiedName().equals(className)) {
+					return t;
+				}
+				else if (t.getTypes() != null) {
+					IType s = findType(t.getTypes(), className);
+					if (s != null) {
+						return s;
+					}
+				}
+			}
+		}
+		return null;
 	}
 
 	public static String generateClassAnnotations(String firstClassName, Settings settings) {
@@ -245,5 +272,29 @@ public class BuilderCodeGenerator {
 			return sb.toString();
 		}
 		return null;
+	}
+
+	public static List<String> findAllClasses(ICompilationUnit compilationUnit) throws JavaModelException {
+		List<String> list = new ArrayList<>();
+		IType[] types = compilationUnit.getTypes();
+		if (types != null) {
+			for (IType t : types) {
+				list.add(t.getTypeQualifiedName());
+				list.addAll(findSubClassNames(t));
+			}
+		}
+		return list;
+	}
+
+	private static List<String> findSubClassNames(IType top) throws JavaModelException {
+		List<String> list = new ArrayList<>();
+		IType[] types = top.getTypes();
+		if (types != null) {
+			for (IType t : types) {
+				list.add(t.getTypeQualifiedName());
+				list.addAll(findSubClassNames(t));
+			}
+		}
+		return list;
 	}
 }

@@ -51,6 +51,11 @@ public class BuilderCreatorCommandHandler extends AbstractHandler {
 
 	private void modify(ICompilationUnit cu) throws JavaModelException {
 
+		IType mainClass = BuilderCodeGenerator.findFirstClass(cu);
+		if (mainClass == null) {
+			return;
+		}
+
 		BuilderCreatorDialog dialog = new BuilderCreatorDialog();
 		if (dialog.show(cu) == Window.OK) {
 
@@ -70,10 +75,7 @@ public class BuilderCreatorCommandHandler extends AbstractHandler {
 				}
 			}
 
-			IType mainClass = BuilderCodeGenerator.findFirstClass(cu);
-			if (mainClass == null) {
-				return;
-			}
+			mainClass = field.getDeclaringType();
 			final String firstClassName = mainClass.getElementName();
 			String generatedCode = BuilderCodeGenerator.generate(firstClassName, fields, dialog.getSettings());
 			int position = field.getSourceRange().getOffset() + field.getSourceRange().getLength();

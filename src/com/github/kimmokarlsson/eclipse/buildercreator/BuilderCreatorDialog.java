@@ -14,6 +14,7 @@ import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.layout.RowLayout;
 import org.eclipse.swt.widgets.Button;
+import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
@@ -32,6 +33,8 @@ public class BuilderCreatorDialog extends AbstractModalDialog {
 	private List<IField> selectedFields;
 	private IField lastField;
 	private BuilderCodeGenerator.Settings settings;
+	private Collection<TableItem> fieldButtons;
+	private Collection<IField> allFields;
 
 	public BuilderCreatorDialog() {
 		super(BuilderCreatorPlugin.getDefault().getWorkbench().getModalDialogShellProvider().getShell(), SWT.RESIZE);
@@ -55,27 +58,44 @@ public class BuilderCreatorDialog extends AbstractModalDialog {
         shell.setText("Generate Builder");
         shell.setLayout(new GridLayout(2, false));
 
+        Label classGroup = new Label(shell, SWT.NONE);
+        classGroup.setText("Select (sub)-class:");
+        GridData classGroupLayoutData = new GridData();
+        classGroupLayoutData.horizontalSpan = 2;
+        classGroup.setLayoutData(classGroupLayoutData);
+
+        final Combo classCombo = new Combo(shell, SWT.BORDER);
+        GridData classComboData = new GridData(SWT.FILL, SWT.CENTER, true, false);
+        classComboData.horizontalSpan = 2;
+        classCombo.setLayoutData(classComboData);
+        for (String s : BuilderCodeGenerator.findAllClasses(compilationUnit)) {
+        	classCombo.add(s);
+        }
+        classCombo.select(0);
+
         Label fieldGroup = new Label(shell, SWT.NONE);
         fieldGroup.setText("Select fields to include:");
         GridData fieldGroupLayoutData = new GridData();
         fieldGroupLayoutData.horizontalSpan = 2;
         fieldGroup.setLayoutData(fieldGroupLayoutData);
 
-        Table fieldTable = new Table(shell, SWT.CHECK | SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
+        final Table fieldTable = new Table(shell, SWT.CHECK | SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
         GridData fieldTableData = new GridData(SWT.FILL, SWT.FILL, true, true);
         fieldTableData.verticalSpan = 5;
         fieldTable.setLayoutData(fieldTableData);
 
-        Collection<IField> fields = BuilderCodeGenerator.findAllFIelds(compilationUnit);
-        final Collection<TableItem> fieldButtons = new ArrayList<>();
-        for (IField field : fields) {
-            TableItem item = new TableItem(fieldTable, SWT.NONE);
-            item.setText(BuilderCodeGenerator.getFieldType(field) + " " + field.getElementName());
-            item.setData(field);
-            item.setChecked(true);
-            fieldButtons.add(item);
-            lastField = field;
-        }
+        resetTableContents(compilationUnit, fieldTable, null);
+        classCombo.addSelectionListener(new SelectionAdapter() {
+        	@Override
+        	public void widgetSelected(SelectionEvent event) {
+        		int index = classCombo.getSelectionIndex();
+        		String className = classCombo.getItem(index);
+        		try {
+					resetTableContents(compilationUnit, fieldTable, className);
+				} catch (JavaModelException e) {
+					ErrorLog.error("Resetting dialog's table component", e);
+				}
+        	}});
 
         Button btnSelectAll = new Button(shell, SWT.PUSH);
         btnSelectAll.setText("Select All");
@@ -168,7 +188,7 @@ public class BuilderCreatorDialog extends AbstractModalDialog {
 			@Override
 			public void widgetSelected(SelectionEvent e) {
 				status = Dialog.OK;
-				Iterator<IField> fieldIter = fields.iterator();
+				Iterator<IField> fieldIter = allFields.iterator();
 				for (TableItem button : fieldButtons) {
 					IField f = fieldIter.next();
 					if (button.getChecked()) {
@@ -189,6 +209,20 @@ public class BuilderCreatorDialog extends AbstractModalDialog {
         optionGroup.pack();
         display(shell);
 		return status;
+	}
+
+	private void resetTableContents(ICompilationUnit compilationUnit, Table fieldTable, String className) throws JavaModelException {
+        fieldTable.removeAll();
+        allFields = BuilderCodeGenerator.findAllFields(compilationUnit, className);
+        fieldButtons = new ArrayList<>();
+        for (IField field : allFields) {
+            TableItem item = new TableItem(fieldTable, SWT.NONE);
+            item.setText(BuilderCodeGenerator.getFieldType(field) + " " + field.getElementName());
+            item.setData(field);
+            item.setChecked(true);
+            fieldButtons.add(item);
+            lastField = field;
+        }
 	}
 
 	private boolean getBooleanProperty(IProject project, String localName) {

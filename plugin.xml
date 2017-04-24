@@ -37,14 +37,6 @@
                   checkEnabled="true">
             </visibleWhen>
          </command>
-         <command
-               commandId="com.github.kimmokarlsson.eclipse.buildercreator.renameFieldBuilderCommand"
-               label="Rename Builder Field"
-               style="push">
-            <visibleWhen
-                  checkEnabled="true">
-            </visibleWhen>
-         </command>
       </menuContribution>
    </extension>
    <extension
