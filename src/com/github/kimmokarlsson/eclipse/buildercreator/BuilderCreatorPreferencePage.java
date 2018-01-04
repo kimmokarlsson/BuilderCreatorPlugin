@@ -41,11 +41,14 @@ public class BuilderCreatorPreferencePage extends FieldEditorPreferencePage impl
 				"Convert fields into private final",
 				BooleanFieldEditor.DEFAULT, boxGroup));
 		addField(new BooleanFieldEditor(BuilderCreatorPrefs.getQualifiedName(BuilderCreatorPrefs.PREF_CREATE_BUILDERFROM_METHOD),
-				"Create builderFrom Method",
+				"Create builderFrom() Method",
 				BooleanFieldEditor.DEFAULT, boxGroup));
 		addField(new BooleanFieldEditor(BuilderCreatorPrefs.getQualifiedName(BuilderCreatorPrefs.PREF_JACKSON_ANNOTATIONS),
 				"Add Jackson Annotations",
 				BooleanFieldEditor.DEFAULT, boxGroup));
+        addField(new BooleanFieldEditor(BuilderCreatorPrefs.getQualifiedName(BuilderCreatorPrefs.PREF_EQUALS_METHOD),
+                "Add equals() and hashCode() Methods",
+                BooleanFieldEditor.DEFAULT, boxGroup));
 		addField(new StringFieldEditor(BuilderCreatorPrefs.getQualifiedName(BuilderCreatorPrefs.PREF_BUILDER_METHOD_NAME),
 				"Builder Method Name",
 				StringFieldEditor.UNLIMITED, getFieldEditorParent()));

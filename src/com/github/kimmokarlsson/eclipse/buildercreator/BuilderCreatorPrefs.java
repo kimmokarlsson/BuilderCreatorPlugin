@@ -1,9 +1,9 @@
 package com.github.kimmokarlsson.eclipse.buildercreator;
 
-import java.io.IOException;
-
 import org.eclipse.jface.preference.IPersistentPreferenceStore;
 import org.eclipse.jface.preference.IPreferenceStore;
+
+import java.io.IOException;
 
 public class BuilderCreatorPrefs {
 
@@ -13,6 +13,7 @@ public class BuilderCreatorPrefs {
 	public static final String PREF_JACKSON_ANNOTATIONS = "jacksonAnnotations";
 	public static final String PREF_BUILDER_METHOD_NAME = "builderMethodName";
 	public static final String PREF_BUILDER_PREFIX = "builderClassMethodPrefix";
+    public static final String PREF_EQUALS_METHOD = "equalsMethod";
 
 	private BuilderCreatorPrefs() {
 	}

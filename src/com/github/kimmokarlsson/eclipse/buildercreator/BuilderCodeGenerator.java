@@ -21,6 +21,7 @@ public class BuilderCodeGenerator {
 		private final boolean jacksonAnnotations;
 		private final String buildMethodName;
 		private final String methodPrefix;
+		private final boolean equalsMethod;
 
 		Settings(Builder b) {
 			this.convertFieldsFinal = b.convertFieldsFinal;
@@ -28,6 +29,7 @@ public class BuilderCodeGenerator {
 			this.jacksonAnnotations = b.jacksonAnnotations;
 			this.buildMethodName = checkString(b.buildMethodName, "build");
 			this.methodPrefix = checkString(b.methodPrefix, "");
+			this.equalsMethod = b.equalsMethod;
 		}
 
 		private String checkString(String s, String d) {
@@ -56,6 +58,9 @@ public class BuilderCodeGenerator {
 		public String getMethodPrefix() {
 			return methodPrefix;
 		}
+		public boolean isEqualsMethod() {
+		    return equalsMethod;
+		}
 
 		public static class Builder {
 			private boolean convertFieldsFinal;
@@ -63,6 +68,7 @@ public class BuilderCodeGenerator {
 			private boolean jacksonAnnotations;
 			private String buildMethodName;
 			private String methodPrefix;
+			private boolean equalsMethod;
 			private Builder() {}
 			public Builder convertFieldsFinal(boolean s) {
 				this.convertFieldsFinal = s;
@@ -83,6 +89,10 @@ public class BuilderCodeGenerator {
 			public Builder methodPrefix(String s) {
 				this.methodPrefix = s;
 				return this;
+			}
+			public Builder equalsMethod(boolean s) {
+			    this.equalsMethod = s;
+			    return this;
 			}
 			public Settings build() {
 				return new Settings(this);
@@ -150,7 +160,51 @@ public class BuilderCodeGenerator {
 			sb.append("    }\n");
 		}
 
-		sb.append("\n\n");
+		if (settings.isEqualsMethod()) {
+            sb.append("    @Override\n");
+		    sb.append("    public boolean equals(Object obj) {\n");
+		    sb.append("        if (obj == this) {\n");
+            sb.append("            return true;\n");
+            sb.append("        }\n");
+            sb.append("        if (!(obj instanceof ");
+            sb.append(className);
+            sb.append(")) {\n");
+            sb.append("            return false;\n");
+            sb.append("        }\n");
+            sb.append("    ");
+            sb.append(className);
+            sb.append(" that = (");
+            sb.append(className);
+            sb.append(") obj;\n");
+            sb.append("        return ");
+            for (IField f : fields) {
+                sb.append("Objects.equal(this.");
+                sb.append(f.getElementName());
+                sb.append(", that.");
+                sb.append(f.getElementName());
+                sb.append(") && ");
+            }
+            if (fields.size() > 0) {
+                sb.setLength(sb.length()-4);
+            }
+            sb.append(";\n    }\n");
+            sb.append("\n\n");
+
+            sb.append("    @Override\n");
+            sb.append("    public int hashCode() {\n");
+            sb.append("        return Objects.hash(\n");
+            for (IField f : fields) {
+                sb.append(f.getElementName());
+                sb.append(", ");
+            }
+            if (fields.size() > 0) {
+                sb.setLength(sb.length()-2);
+            }
+            sb.append(");\n");
+            sb.append("    }\n");
+        }
+
+        sb.append("\n\n");
 
 		// jackson annotations
 		if (settings.isJacksonAnnotations()) {

@@ -140,11 +140,15 @@ public class BuilderCreatorDialog extends AbstractModalDialog {
 
         final Button createBuilderFromMethod = new Button(optionGroup, SWT.CHECK);
         createBuilderFromMethod.setSelection(getBooleanProperty(project, BuilderCreatorPrefs.PREF_CREATE_BUILDERFROM_METHOD));
-        createBuilderFromMethod.setText("Create builderFrom method");
+        createBuilderFromMethod.setText("Create builderFrom() method");
 
         final Button createJacksonAnnotations = new Button(optionGroup, SWT.CHECK);
         createJacksonAnnotations.setSelection(getBooleanProperty(project, BuilderCreatorPrefs.PREF_JACKSON_ANNOTATIONS));
         createJacksonAnnotations.setText("Create Jackson annotations");
+
+        final Button createEqualsMethod = new Button(optionGroup, SWT.CHECK);
+        createEqualsMethod.setSelection(getBooleanProperty(project, BuilderCreatorPrefs.PREF_EQUALS_METHOD));
+        createEqualsMethod.setText("Create equals() and hashCode() methods");
 
         final Label builderLabel = new Label(optionGroup, SWT.NONE);
         builderLabel.setText("Builder method prefix:");
@@ -199,6 +203,7 @@ public class BuilderCreatorDialog extends AbstractModalDialog {
 						.builderFromMethod(createBuilderFromMethod.getSelection())
 						.convertFieldsFinal(convertFieldsToFinal.getSelection())
 						.jacksonAnnotations(createJacksonAnnotations.getSelection())
+						.equalsMethod(createEqualsMethod.getSelection())
 						.buildMethodName(buildMethodName.getText())
 						.methodPrefix(builderMethodPrefix.getText())
 						.build();

@@ -69,7 +69,7 @@ public class BuilderCreatorPropertyPage extends PropertyPage implements IWorkben
 		topRowLayout.numColumns = 3;
 		topRow.setLayout(topRowLayout);
 
-        checkboxes = new Button[4];
+        checkboxes = new Button[5];
         checkboxes[0] = new Button(topRow, SWT.CHECK);
         checkboxes[0].setLayoutData(new GridData());
         checkboxes[0].setText("Enable project specific settings");
@@ -137,6 +137,12 @@ public class BuilderCreatorPropertyPage extends PropertyPage implements IWorkben
         checkboxes[3].setText("Add Jackson Annotations");
         checkboxes[3].setData(PROP_KEY, BuilderCreatorPrefs.PREF_JACKSON_ANNOTATIONS);
         checkboxes[3].setEnabled(initialEnabled);
+
+        checkboxes[4] = new Button(group, SWT.CHECK);
+        checkboxes[4].setLayoutData(new GridData());
+        checkboxes[4].setText("Add equals() and hashCode() methods");
+        checkboxes[4].setData(PROP_KEY, BuilderCreatorPrefs.PREF_EQUALS_METHOD);
+        checkboxes[4].setEnabled(initialEnabled);
 
         Group textGroup = new Group(composite, SWT.NONE);
         textGroup.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
