@@ -1,32 +1,12 @@
 package com.github.kimmokarlsson.eclipse.buildercreator;
 
 import org.eclipse.jdt.core.ICompilationUnit;
-import org.eclipse.jdt.core.dom.AST;
-import org.eclipse.jdt.core.dom.ASTNode;
-import org.eclipse.jdt.core.dom.ASTParser;
-import org.eclipse.jdt.core.dom.Assignment;
-import org.eclipse.jdt.core.dom.Block;
-import org.eclipse.jdt.core.dom.CompilationUnit;
-import org.eclipse.jdt.core.dom.ExpressionStatement;
-import org.eclipse.jdt.core.dom.FieldAccess;
-import org.eclipse.jdt.core.dom.FieldDeclaration;
-import org.eclipse.jdt.core.dom.IExtendedModifier;
-import org.eclipse.jdt.core.dom.MethodDeclaration;
-import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.*;
+import org.eclipse.jdt.core.dom.InfixExpression.Operator;
 import org.eclipse.jdt.core.dom.Modifier.ModifierKeyword;
-import org.eclipse.jdt.core.dom.Name;
-import org.eclipse.jdt.core.dom.ParameterizedType;
-import org.eclipse.jdt.core.dom.PrimitiveType;
-import org.eclipse.jdt.core.dom.QualifiedType;
-import org.eclipse.jdt.core.dom.ReturnStatement;
-import org.eclipse.jdt.core.dom.SimpleName;
-import org.eclipse.jdt.core.dom.SimpleType;
-import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
-import org.eclipse.jdt.core.dom.Type;
-import org.eclipse.jdt.core.dom.TypeDeclaration;
-import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
 import org.eclipse.jdt.ui.text.java.correction.ASTRewriteCorrectionProposal;
+import org.eclipse.text.edits.TextEditGroup;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -205,6 +185,97 @@ public class BuilderAddFieldCompletionProposal extends ASTRewriteCorrectionPropo
 			}
 		}
 
+		// find equals method
+		MethodDeclaration eqMethod = null;
+		for (MethodDeclaration m : modifiedParentClass.getMethods()) {
+			if (m.getName().getIdentifier().equals("equals") && m.parameters().size() == 1) {
+				eqMethod = m;
+				break;
+			}
+		}
+		// add entry into existing equals method
+		if (eqMethod != null) {
+			ReturnStatement rs = null;
+			for (Object stmt : eqMethod.getBody().statements()) {
+				if (stmt instanceof ReturnStatement) {
+					rs = (ReturnStatement) stmt;
+				}
+			}
+			String typeStr = "";
+			if (fieldDefNode.getType().isPrimitiveType()) {
+				typeStr = ((PrimitiveType)fieldDefNode.getType()).getPrimitiveTypeCode().toString();
+			}
+			boolean primitiveType = BuilderCodeGenerator.isEqualsComparable(typeStr);
+			if (rs != null) {
+				// case1: "return Objects.equals(this.onlyField, that.onlyField)"
+				if (rs.getExpression() instanceof MethodInvocation) {
+					MethodInvocation mi = (MethodInvocation) rs.getExpression();
+					if (mi.getExpression() instanceof SimpleName && ((SimpleName)mi.getExpression()).getIdentifier().equals("Objects")
+							&& mi.getName().getIdentifier().equals("equals")) {
+						rs.setExpression(createObjectsEqualExpr(ast, mi, fieldName, primitiveType));
+					}
+				}
+				// other cases: "return Objects.equals(this.field1, that.field2) && this.field2 == that.field2 && ..."
+				else if (rs.getExpression() instanceof InfixExpression) {
+					InfixExpression parentExpr = null;
+					InfixExpression ce = (InfixExpression) rs.getExpression();
+					while (ce.getOperator() == Operator.CONDITIONAL_AND) {
+						if (ce.getRightOperand() instanceof InfixExpression) {
+							parentExpr = ce;
+							ce = (InfixExpression) ce.getRightOperand();
+						} else {
+							break;
+						}
+					}
+					// single or no AND -clauses
+					if (parentExpr == null) {
+						// "Objects.equals(this.a, that.a) && Objects.equals(this.b, that.b)"
+						if (ce.getOperator() == Operator.CONDITIONAL_AND) {
+							ce.setRightOperand(createObjectsEqualExpr(ast, ce.getRightOperand(), fieldName, primitiveType));
+						}
+						// "this.a == that.a"
+						else {
+							rs.setExpression(createObjectsEqualExpr(ast, ce, fieldName, primitiveType));
+						}
+					}
+					// multiple AND -clauses
+					else {
+						if (ce.getOperator() == Operator.CONDITIONAL_AND) {
+							ce.setRightOperand(createObjectsEqualExpr(ast, ce.getRightOperand(), fieldName, primitiveType));
+						}
+						else {
+							parentExpr.setRightOperand(createObjectsEqualExpr(ast, parentExpr.getRightOperand(), fieldName, primitiveType));
+						}
+					}
+				}
+			}
+		}
+
+		// find hashcode method
+		MethodDeclaration hashMethod = null;
+		for (MethodDeclaration m : modifiedParentClass.getMethods()) {
+			if (m.getName().getIdentifier().equals("hashCode") && m.parameters().size() == 0) {
+				hashMethod = m;
+				break;
+			}
+		}
+		// add entry into existing hash method
+		if (hashMethod != null) {
+			for (Object stmt : hashMethod.getBody().statements()) {
+				if (stmt instanceof ReturnStatement) {
+					ReturnStatement rs = (ReturnStatement) stmt;
+					if (rs.getExpression() instanceof MethodInvocation) {
+						MethodInvocation mi = (MethodInvocation) rs.getExpression();
+						if (mi.getExpression() instanceof SimpleName && ((SimpleName)mi.getExpression()).getIdentifier().equals("Objects")
+								&& mi.getName().getIdentifier().equals("hash")) {
+							mi.arguments().add(ast.newSimpleName(fieldName));
+							break;
+						}
+					}
+				}
+			}
+		}
+
 		// find neighbor from builder
 		int index = 0;
 		for (FieldDeclaration f : modifiedBuilderClass.getFields()) {
@@ -310,8 +381,35 @@ public class BuilderAddFieldCompletionProposal extends ASTRewriteCorrectionPropo
 		}
 		modifiedBuilderClass.bodyDeclarations().add(setterIndex+1+neighborOffset, setter);
 
-		rewrite.replace(parentClass, modifiedParentClass, null);
+		TextEditGroup grp = new TextEditGroup(NAME);
+		rewrite.replace(parentClass, modifiedParentClass, grp);
 		return rewrite;
+	}
+
+	private static Expression createObjectsEqualExpr(AST ast, Expression orig, String fieldName, boolean primitiveType) {
+		InfixExpression inf = ast.newInfixExpression();
+		inf.setLeftOperand((Expression) ASTNode.copySubtree(ast, orig));
+		inf.setOperator(Operator.CONDITIONAL_AND);
+		FieldAccess thisField = ast.newFieldAccess();
+		thisField.setExpression(ast.newThisExpression());
+		thisField.setName(ast.newSimpleName(fieldName));
+		QualifiedName thatField = ast.newQualifiedName(ast.newSimpleName("that"), ast.newSimpleName(fieldName));
+		if (primitiveType) {
+			InfixExpression eq = ast.newInfixExpression();
+			eq.setLeftOperand(thisField);
+			eq.setOperator(Operator.EQUALS);
+			eq.setRightOperand(thatField);
+			inf.setRightOperand(eq);
+		}
+		else {
+			MethodInvocation mieq = ast.newMethodInvocation();
+			mieq.setExpression(ast.newSimpleName("Objects"));
+			mieq.setName(ast.newSimpleName("equals"));
+			mieq.arguments().add(thisField);
+			mieq.arguments().add(thatField);
+			inf.setRightOperand(mieq);
+		}
+		return inf;
 	}
 
 	private static String getGetterName(String fieldName, Type type) {
@@ -332,7 +430,7 @@ public class BuilderAddFieldCompletionProposal extends ASTRewriteCorrectionPropo
 			QualifiedType qt = (QualifiedType) type;
 			copy = ast.newQualifiedType(createTypeCopy(qt.getQualifier(), ast), (SimpleName)copyName(qt.getName(),ast));
 		}
-	    else if (type.isParameterizedType()) {
+		else if (type.isParameterizedType()) {
 			ParameterizedType pt = (ParameterizedType) type;
 			copy = ast.newParameterizedType(createTypeCopy(pt.getType(), ast));
 			for (Object obj : pt.typeArguments()) {
@@ -340,10 +438,10 @@ public class BuilderAddFieldCompletionProposal extends ASTRewriteCorrectionPropo
 				((ParameterizedType)copy).typeArguments().add(createTypeCopy(st, ast));
 			}
 		}
-	    else if (type.isSimpleType()) {
-	    	SimpleType st = (SimpleType) type;
-	    	copy = ast.newSimpleType(copyName(st.getName(), ast));
-	    }
+		else if (type.isSimpleType()) {
+			SimpleType st = (SimpleType) type;
+			copy = ast.newSimpleType(copyName(st.getName(), ast));
+		}
 		return copy;
 	}
 

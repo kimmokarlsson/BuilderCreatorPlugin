@@ -11,7 +11,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class BuilderCodeGenerator {
 
@@ -100,6 +102,9 @@ public class BuilderCodeGenerator {
 		}
 	}
 
+	private static Set<String> equalsComparables = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+				"boolean", "byte", "char", "short", "int", "long")));
+
 	public static String convertFieldToPrivateFinal(IField f) throws JavaModelException {
 		int flags = f.getFlags();
 		StringBuilder sb = new StringBuilder();
@@ -161,50 +166,61 @@ public class BuilderCodeGenerator {
 		}
 
 		if (settings.isEqualsMethod()) {
-            sb.append("    @Override\n");
-		    sb.append("    public boolean equals(Object obj) {\n");
-		    sb.append("        if (obj == this) {\n");
-            sb.append("            return true;\n");
-            sb.append("        }\n");
-            sb.append("        if (!(obj instanceof ");
-            sb.append(className);
-            sb.append(")) {\n");
-            sb.append("            return false;\n");
-            sb.append("        }\n");
-            sb.append("    ");
-            sb.append(className);
-            sb.append(" that = (");
-            sb.append(className);
-            sb.append(") obj;\n");
-            sb.append("        return ");
-            for (IField f : fields) {
-                sb.append("Objects.equal(this.");
-                sb.append(f.getElementName());
-                sb.append(", that.");
-                sb.append(f.getElementName());
-                sb.append(") && ");
-            }
-            if (fields.size() > 0) {
-                sb.setLength(sb.length()-4);
-            }
-            sb.append(";\n    }\n");
-            sb.append("\n\n");
+			sb.append("    @Override\n");
+			sb.append("    public boolean equals(Object obj) {\n");
+			sb.append("        if (obj == this) {\n");
+			sb.append("            return true;\n");
+			sb.append("        }\n");
+			sb.append("        if (obj == null || getClass() != obj.getClass()) {\n");
+			sb.append("            return false;\n");
+			sb.append("        }\n");
+			sb.append("    ");
+			sb.append(className);
+			sb.append(" that = (");
+			sb.append(className);
+			sb.append(") obj;\n");
+			sb.append("        return ");
+			for (IField f : fields) {
+				String typ = getFieldType(f);
+				boolean iseq = isEqualsComparable(typ);
+				if (!iseq) {
+					sb.append("Objects.equals(");
+				}
+				sb.append("this.");
+				sb.append(f.getElementName());
+				if (iseq) {
+					sb.append(" ==");
+				} else {
+					sb.append(',');
+				}
+				sb.append(" that.");
+				sb.append(f.getElementName());
+				if (!iseq) {
+					sb.append(')');
+				}
+				sb.append(" && ");
+			}
+			if (fields.size() > 0) {
+				sb.setLength(sb.length()-4);
+			}
+			sb.append(";\n    }\n");
+			sb.append("\n\n");
 
-            sb.append("    @Override\n");
-            sb.append("    public int hashCode() {\n");
-            sb.append("        return Objects.hash(\n");
-            for (IField f : fields) {
-                sb.append(f.getElementName());
-                sb.append(", ");
-            }
-            if (fields.size() > 0) {
-                sb.setLength(sb.length()-2);
-            }
-            sb.append(");\n");
-            sb.append("    }\n");
-        }
+			sb.append("    @Override\n");
+			sb.append("    public int hashCode() {\n");
+			sb.append("        return Objects.hash(\n");
+			for (IField f : fields) {
+				sb.append(f.getElementName());
+				sb.append(", ");
+			}
+			if (fields.size() > 0) {
+				sb.setLength(sb.length()-2);
+			}
+			sb.append(");\n");
+			sb.append("    }\n");
+		}
 
-        sb.append("\n\n");
+		sb.append("\n\n");
 
 		// jackson annotations
 		if (settings.isJacksonAnnotations()) {
@@ -267,6 +283,10 @@ public class BuilderCodeGenerator {
 		sb.append("        }\n");
 		sb.append("    }\n");
 		return sb.toString();
+	}
+
+	static boolean isEqualsComparable(String typ) {
+		return equalsComparables.contains(typ);
 	}
 
 	public static IType findFirstClass(ICompilationUnit compilationUnit) throws JavaModelException {
